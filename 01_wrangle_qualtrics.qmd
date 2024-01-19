@@ -1,7 +1,8 @@
 ---
 title: "Working a qualtrics project"
 author: "John Little"
-editor: visual
+
+editor: source
 ---
 
 ## Load library packages
@@ -140,7 +141,7 @@ joined_df |>
                                  coord_flip() +
                                  scale_y_continuous(labels = scales::percent_format()) +
                                  labs(title = mytitle,
-                                      caption = "make up Qualtrics sample data"))) |>
+                                      caption = "made up Qualtrics sample data"))) |>
 pull(my_percentages)
   
 ```
