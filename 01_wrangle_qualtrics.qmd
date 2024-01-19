@@ -1,0 +1,146 @@
+---
+title: "Working a qualtrics project"
+author: "John Little"
+editor: visual
+---
+
+## Load library packages
+
+The key with this sample data is that the SPSS data is labeled, and the CSV data is not. The CSV data is easier to work with in R, but the labeled data is easier to work with in SPSS. The goal is to get the best of both worlds. The labeled data is imported from SPSS, and the CSV data is imported from the CSV file. The labeled data is then joined with the CSV data, and the result is a data frame that has both the labeled data and the CSV data. The labeled data is easier to use in visualizations, and the CSV data is easier to use in analysis.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(haven)
+library(gt)
+```
+
+## Import data
+
+```{r}
+my_spss_df <- read_sav("data/student-satisfaction_SPSS.sav") 
+my_CSV_df <- read_csv("data/student-satisfaction_CSV_use-choice-text.csv", 
+                      n_max = 1) 
+```
+
+## Wrangle
+
+## My text example
+
+Clean question text. This table has the original question text, as used in Qualtrics. It can be used to merge into the data frame containing the survey response data. Scroll right to see the question text as it was originally exported in line 1 of the CSV file from Qualtrics. And here's the thing: only the CSV file has the original text. The SPSS file has the labeled data, but not the original question text. The CSV file has the question original text, but not the labeled data. The goal is to get the best of both worlds. The labeled data is imported from SPSS, and the CSV data is imported from the CSV file. The labeled data is then joined with the CSV data, and the result is a data frame that has both the labeled data and the CSV data. The labeled data is easier to use in visualizations, and the CSV data is easier to use in analysis.
+
+```{r}
+my_CSV_df <- my_CSV_df |> 
+  janitor::clean_names() |> 
+  pivot_longer(cols = everything(), names_to = "question", values_to = "question_text") 
+
+my_CSV_df
+```
+
+This table contains both the numeric response and the labeled categorical factors. The labeled factors are easier to use in visualizations. The numeric response are sometimes easier to use in analysis.
+
+```{r}
+my_labeled_spss_df <- my_spss_df |> 
+  clean_names() |> 
+  select(start_date, response_id, starts_with("q")) |> 
+  # mutate(across(is.labelled, ~ as_factor(.x), .names = "{.col}_label"))  |> 
+  mutate(across(is.labelled, ~ as_factor(.x)))  |> 
+  # pivot_longer(cols = ends_with("_label"), names_to = "question", values_to = "response") |> 
+  pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "response") |> 
+  select(start_date, response_id, question, response)
+my_labeled_spss_df
+  
+my_numeric_spss_df <- my_spss_df |>
+  clean_names() |> 
+  select(start_date, response_id, starts_with("q")) |> 
+  mutate(across(is.labelled, ~ as.numeric(.x))) |> 
+  pivot_longer(cols = starts_with("q"), names_to = "question", values_to = "response") 
+my_numeric_spss_df
+```
+
+join question with question text
+
+```{r}
+
+joined_df <- my_labeled_spss_df |> 
+  left_join(my_CSV_df, by = "question")
+
+joined_df
+```
+
+## viz
+
+```{r}
+joined_df |> 
+  filter(question == "q6") |>
+  ggplot(aes(x = response)) +
+  geom_bar() +
+  coord_flip() +
+  labs(title = joined_df |> filter(question == "q6") |> distinct(question_text) |> pull(question_text)) +
+  theme_bw()
+```
+
+Iterate for all the questions
+
+```{r}
+make_my_plots_df <- joined_df |> 
+  nest(data = -c(question, question_text)) |> 
+  mutate(my_barplot = map2(data, question_text, \(my_x, my_title) ggplot(my_x, aes(x = response)) +
+                             geom_bar() +
+                             coord_flip() +
+                             labs(title = my_title) +
+                             theme_bw()))
+make_my_plots_df
+```
+
+See the plots made in the previous example. Notice, although it is hard to see in the last plot, each plot has the labeled responses. Those labels are in order of the likkert scale because the data were downloaded as spss data and then wrangled as labelled categorical factors in R.
+
+```{r}
+make_my_plots_df |> 
+  pull(my_barplot) 
+
+```
+
+## Figure out percentages
+
+```{r}
+joined_df |> 
+  filter(question == "q6") |> 
+  count(response)
+```
+
+Determine percentage of response
+
+```{r}
+joined_df |> 
+  filter(question == "q6") |> 
+  count(question_text, response) |> 
+  mutate(percent = n / sum(n))
+```
+
+visualize percentage
+
+```{r}
+joined_df |> 
+  filter(question == "q6") |> 
+  count(question_text, response) |> 
+  mutate(percent = n / sum(n)) |> 
+  ggplot(aes(x = question_text, y = percent, fill = response)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent_format()) 
+  
+joined_df |>
+  nest(data = -c(question_text)) |>
+  mutate(my_percentages = map2(data, question_text, \(mydata, mytitle) 
+                               mydata |> count(question, response) |>
+                                 mutate(percent = n / sum(n)) |>
+                                 ggplot(aes(x = question, y = percent, fill = response)) +
+                                 geom_col() +
+                                 coord_flip() +
+                                 scale_y_continuous(labels = scales::percent_format()) +
+                                 labs(title = mytitle,
+                                      caption = "make up Qualtrics sample data"))) |>
+pull(my_percentages)
+  
+```

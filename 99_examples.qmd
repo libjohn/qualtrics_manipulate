@@ -1,0 +1,81 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+my_colors <- c("darkorange", "forestgreen", "navy")
+
+starwars |> 
+  filter(mass < 500) |> 
+  ggplot(aes(gender)) +
+  geom_bar(aes(fill = sex)) +
+  scale_fill_manual(values = my_colors, na.value = "grey40")
+```
+
+```{r}
+library(gt)
+```
+
+```{r}
+library(tidyverse)
+starwars |> 
+  filter(mass < 500) |> 
+  group_by(gender) |> 
+  summarise(max(mass), min(mass), mean(mass)) |> 
+  gt() |> 
+  gtsave("foo.png")
+```
+
+```{r}
+library(tidyverse)
+starwars_with_factors <- starwars |> 
+  drop_na(skin_color) |> 
+  select(name, skin_color) |> 
+  mutate(skin_color = factor(skin_color))
+
+starwars_with_factors
+
+starwars_with_factors |> 
+  pull(skin_color) |> 
+  levels()
+  
+starwars |> 
+  drop_na(skin_color) |> 
+  select(name, skin_color) |> 
+  mutate(skin_color = factor(skin_color)) |> 
+  mutate(skin_color = fct_other(skin_color, drop = c("blue, grey", "green-tan, brown"))) 
+
+starwars |> 
+  drop_na(skin_color) |> 
+  select(name, skin_color) |> 
+  mutate(skin_color = factor(skin_color)) |> 
+  mutate(skin_color = fct_other(skin_color, drop = c("blue, grey", "green-tan, brown"))) |> 
+  pull(skin_color) |> 
+  levels()
+```
+
+```{r}
+starwars |> 
+  drop_na(skin_color) |> 
+  mutate(foo = skin_color) |> 
+  select(name, skin_color, foo) |> 
+  mutate(skin_color = case_when(
+    skin_color == "blue, grey" ~ "blue",
+    skin_color == "green-tan, brown" ~ "blue",
+    TRUE ~ skin_color
+  )) |> 
+  filter(skin_color == "blue")
+```
+
+```{r}
+starwars |> 
+  group_by(gender) |> 
+  summarise(total = n()) |> 
+  mutate(percent = total / sum(total))
+```
